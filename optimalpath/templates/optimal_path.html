@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Optimal Path Finder</title>
+    <style>
+      /* Add some basic styling */
+      body {
+        font-family: Arial, sans-serif;
+        margin: 20px;
+      }
+      h1 {
+        text-align: center;
+        margin-bottom: 30px;
+      }
+      label {
+        display: block;
+        margin-bottom: 10px;
+      }
+      input[type="text"],
+      input[type="number"],
+      textarea {
+        width: 100%;
+        padding: 10px;
+        margin-bottom: 15px;
+        border: 1px solid #ccc;
+      }
+      button {
+        padding: 10px 20px;
+        background-color: #4caf50;
+        color: white;
+        border: none;
+        cursor: pointer;
+      }
+    </style>
+    <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js" type="text/javascript"></script>
+  </head>
+  <body>
+    <h1>Optimal Path Finder</h1>
+    <form id="optimalPathForm">
+      {% csrf_token %}
+
+      <label for="points">Points:</label>
+      <textarea
+        id="points"
+        rows="4"
+        placeholder="Enter points (one point per line)"
+      ></textarea>
+
+      <label for="source">Source:</label>
+      <input type="text" id="source" placeholder="Enter source point" />
+
+      <label for="destination">Destination:</label>
+      <input
+        type="text"
+        id="destination"
+        placeholder="Enter destination point"
+      />
+
+      <button type="submit">Find Optimal Path</button>
+    </form>
+
+    <div id="result"></div>
+
+    <script>
+      document
+        .getElementById("optimalPathForm")
+        .addEventListener("submit", function (event) {
+          event.preventDefault();
+
+          // Retrieve input values
+          var pointsInput = document
+            .getElementById("points")
+            .value.trim()
+            .split("\n");
+          var sourceInput = document
+            .getElementById("source")
+            .value.trim()
+            .split(",");
+          var destinationInput = document
+            .getElementById("destination")
+            .value.trim()
+            .split(",");
+
+          sourceInput[0] = parseInt(sourceInput[0]);
+          sourceInput[1] = parseInt(sourceInput[1]);
+
+          destinationInput[0] = parseInt(destinationInput[0]);
+          destinationInput[1] = parseInt(destinationInput[1]);
+
+          for (let i = 0; i < pointsInput.length; i++) {
+            const element = pointsInput[i].split(",");
+            element[0] = parseInt(element[0]);
+            element[1] = parseInt(element[1]);
+            pointsInput[i] = element;
+          }
+
+          // Construct the payload
+          var payload = {
+            points: pointsInput,
+            source: sourceInput,
+            destination: destinationInput,
+          };
+
+          // Send POST request to the backend
+          function getCookie(name) {
+            var cookieValue = null;
+            if (document.cookie && document.cookie != "") {
+              var cookies = document.cookie.split(";");
+              for (var i = 0; i < cookies.length; i++) {
+                var cookie = jQuery.trim(cookies[i]);
+                // Does this cookie string begin with the name we want?
+                if (cookie.substring(0, name.length + 1) == name + "=") {
+                  cookieValue = decodeURIComponent(
+                    cookie.substring(name.length + 1)
+                  );
+                  break;
+                }
+              }
+            }
+            return cookieValue;
+          }
+
+          fetch("/optimalpath", {
+            method: "POST",
+            headers: {
+              "X-CSRFToken": getCookie("csrftoken"),
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(payload),
+          })
+            .then(function (response) {
+              return response.json();
+            })
+            .then(function (data) {
+              // Display the optimal path result
+              document.getElementById("result").innerHTML =
+                "Optimal Path: " + data.optimal_path.join(" -> ");
+            })
+            .catch(function (error) {
+              console.error("An error occurred:", error);
+            });
+        });
+    </script>
+  </body>
+</html>
