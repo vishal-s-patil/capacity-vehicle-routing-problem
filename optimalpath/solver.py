@@ -20,8 +20,11 @@ def create_distance_matrix(points):
     return distance_matrix
 
 
-def solve_optimal_path(points, source, destination):
-    data = create_data_model()
+def solve_optimal_path(data):
+    # print('data..', type(data['distance_matrix']), type(data['num_vehicles']), type(data['depot']),
+    #       type(data['demands']), type(data['vehicle_capacities']))
+    # data = create_data_model()
+    # print('data..', type(data['distance_matrix']), type(data['num_vehicles']), type(data['depot']), type(data['demands']), type(data['vehicle_capacities']))
 
     # Create the routing index manager.
     manager = pywrapcp.RoutingIndexManager(len(data['distance_matrix']),
@@ -72,12 +75,10 @@ def solve_optimal_path(points, source, destination):
 
     # Print solution on console.
     if solution:
-        print_solution(data, manager, routing, solution)
+        res = print_solution(data, manager, routing, solution)
+        return res
 
 
-# def create_data_model(points, source, destination):
-#     data = {'distance_matrix': create_distance_matrix(np.array(points)), 'num_vehicles': 1, 'depot': 0}
-#     return data
 def create_data_model():
     """Stores the data for the problem."""
     data = {}
@@ -160,6 +161,9 @@ def create_data_model():
 
 def print_solution(data, manager, routing, solution):
     """Prints solution on console."""
+    res = {
+        "routes": [],
+    }
     print(f'Objective: {solution.ObjectiveValue()}')
     total_distance = 0
     total_load = 0
@@ -181,7 +185,18 @@ def print_solution(data, manager, routing, solution):
         plan_output += 'Distance of the route: {}m\n'.format(route_distance)
         plan_output += 'Load of the route: {}\n'.format(route_load)
         print(plan_output)
+        res["routes"].append({
+            f'Route for vehicle {vehicle_id}': plan_output
+        })
+        # res[f'Route for vehicle {vehicle_id}'] = plan_output
         total_distance += route_distance
         total_load += route_load
     print('Total distance of all routes: {}m'.format(total_distance))
     print('Total load of all routes: {}'.format(total_load))
+    res['total_distance'] = total_distance
+    res['total_load'] = total_load
+    return res
+
+
+
+

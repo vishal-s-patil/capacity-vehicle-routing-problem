@@ -1,145 +1,255 @@
 <!DOCTYPE html>
-<html>
-  <head>
-    <title>Optimal Path Finder</title>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Point Selection</title>
     <style>
-      /* Add some basic styling */
-      body {
-        font-family: Arial, sans-serif;
-        margin: 20px;
-      }
-      h1 {
-        text-align: center;
-        margin-bottom: 30px;
-      }
-      label {
-        display: block;
-        margin-bottom: 10px;
-      }
-      input[type="text"],
-      input[type="number"],
-      textarea {
-        width: 100%;
-        padding: 10px;
-        margin-bottom: 15px;
-        border: 1px solid #ccc;
-      }
-      button {
-        padding: 10px 20px;
-        background-color: #4caf50;
-        color: white;
-        border: none;
-        cursor: pointer;
-      }
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        #container {
+            text-align: center;
+        }
+
+        #canvas {
+            border: 1px solid #000;
+            cursor: crosshair;
+            margin: 20px;
+            margin-top: 10px;
+            /* Set margin top to 10px */
+            border-top: 1px solid #000;
+            /* Add top border */
+            border-bottom: 1px solid #000;
+            /* Add bottom border */
+            border-left: 1px solid #000;
+            /* Add left border */
+            border-right: 1px solid #000;
+            /* Add right border */
+        }
+
+        form {
+            margin-top: 10px;
+        }
+
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
     </style>
-    <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js" type="text/javascript"></script>
-  </head>
-  <body>
-    <h1>Optimal Path Finder</h1>
-    <form id="optimalPathForm">
-      {% csrf_token %}
+</head>
 
-      <label for="points">Points:</label>
-      <textarea
-        id="points"
-        rows="4"
-        placeholder="Enter points (one point per line)"
-      ></textarea>
+<body>
 
-      <label for="source">Source:</label>
-      <input type="text" id="source" placeholder="Enter source point" />
-
-      <label for="destination">Destination:</label>
-      <input
-        type="text"
-        id="destination"
-        placeholder="Enter destination point"
-      />
-
-      <button type="submit">Find Optimal Path</button>
-    </form>
-
-    <div id="result"></div>
+    <div id="container">
+        <canvas id="canvas" width="600" height="600"></canvas>
+        <form onsubmit="submitForm(event)" method="post">
+            {% csrf_token %}
+            <label for="numVehicles">Number of Vehicles:</label>
+            <input type="number" id="numVehicles" name="numVehicles" required>
+            <br>
+            <label for="numVehicles">Vehicle Capacity:</label>
+            <input type="number" id="vehicleCapacity" name="vehicleCapacity" required>
+            <br>
+            <button style="margin: 10px;" type="submit">Submit</button>
+        </form>
+        <div id="outputContainer"></div>
+    </div>
 
     <script>
-      document
-        .getElementById("optimalPathForm")
-        .addEventListener("submit", function (event) {
-          event.preventDefault();
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const selectedPoints = [];
+        const distancesMatrix = [];
+        const demands = [];
+        const gridSize = 20; // Set the grid size
+        const marginTop = 10; // Set the margin top to 10 pixels
 
-          // Retrieve input values
-          var pointsInput = document
-            .getElementById("points")
-            .value.trim()
-            .split("\n");
-          var sourceInput = document
-            .getElementById("source")
-            .value.trim()
-            .split(",");
-          var destinationInput = document
-            .getElementById("destination")
-            .value.trim()
-            .split(",");
-
-          sourceInput[0] = parseInt(sourceInput[0]);
-          sourceInput[1] = parseInt(sourceInput[1]);
-
-          destinationInput[0] = parseInt(destinationInput[0]);
-          destinationInput[1] = parseInt(destinationInput[1]);
-
-          for (let i = 0; i < pointsInput.length; i++) {
-            const element = pointsInput[i].split(",");
-            element[0] = parseInt(element[0]);
-            element[1] = parseInt(element[1]);
-            pointsInput[i] = element;
-          }
-
-          // Construct the payload
-          var payload = {
-            points: pointsInput,
-            source: sourceInput,
-            destination: destinationInput,
-          };
-
-          // Send POST request to the backend
-          function getCookie(name) {
-            var cookieValue = null;
-            if (document.cookie && document.cookie != "") {
-              var cookies = document.cookie.split(";");
-              for (var i = 0; i < cookies.length; i++) {
-                var cookie = jQuery.trim(cookies[i]);
-                // Does this cookie string begin with the name we want?
-                if (cookie.substring(0, name.length + 1) == name + "=") {
-                  cookieValue = decodeURIComponent(
-                    cookie.substring(name.length + 1)
-                  );
-                  break;
-                }
-              }
+        function getCookie(name) {
+            if (!document.cookie) {
+                return null;
             }
-            return cookieValue;
-          }
 
-          fetch("/optimalpath", {
-            method: "POST",
-            headers: {
-              "X-CSRFToken": getCookie("csrftoken"),
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify(payload),
-          })
-            .then(function (response) {
-              return response.json();
-            })
-            .then(function (data) {
-              // Display the optimal path result
-              document.getElementById("result").innerHTML =
-                "Optimal Path: " + data.optimal_path.join(" -> ");
-            })
-            .catch(function (error) {
-              console.error("An error occurred:", error);
-            });
+
+            const xsrfCookies = document.cookie.split(';')
+                .map(c => c.trim())
+                .filter(c => c.startsWith(name + '='));
+
+            if (xsrfCookies.length === 0) {
+                return null;
+            }
+            return decodeURIComponent(xsrfCookies[0].split('=')[1]);
+        }
+
+        // Draw grid starting from 10 pixels away from the top margin
+        ctx.beginPath();
+        for (let x = 0; x <= canvas.width; x += gridSize) {
+            ctx.moveTo(x, marginTop);
+            ctx.lineTo(x, canvas.height);
+        }
+        for (let y = marginTop; y <= canvas.height; y += gridSize) {
+            ctx.moveTo(0, y);
+            ctx.lineTo(canvas.width, y);
+        }
+        ctx.strokeStyle = "#ccc";
+        ctx.stroke();
+        ctx.closePath();
+
+        canvas.addEventListener('click', function (event) {
+            const rect = canvas.getBoundingClientRect();
+            const x = event.clientX - rect.left;
+            const y = event.clientY - rect.top;
+
+            // Calculate grid numbers based on the grid size
+            const gridX = Math.floor(x / gridSize);
+            const gridY = Math.floor((y - marginTop) / gridSize);
+
+            // Draw a point on the canvas at the clicked coordinates
+            ctx.beginPath();
+            ctx.arc(x, y, 5, 0, 2 * Math.PI);
+            ctx.fillStyle = 'red';
+            ctx.fill();
+            ctx.closePath();
+
+            // Add the selected points to the array
+            selectedPoints.push({ x, y, gridX, gridY });
         });
+
+        function submitForm(event) {
+            event.preventDefault();
+
+            const numberOfVehicles = document.getElementById('numVehicles').value;
+            const vehicleCapacity = document.getElementById('vehicleCapacity').value;
+
+            displaySelectedPoints();
+
+            for (let i = 0; i < selectedPoints.length; i++) {
+                const demand = prompt(`Enter demand for Point ${i + 1}:`);
+                demands.push(parseInt(demand, 10));
+            }
+
+            for (let i = 0; i < selectedPoints.length; i++) {
+                distancesMatrix[i] = [];
+                for (let j = 0; j < selectedPoints.length; j++) {
+                    distancesMatrix[i][j] = calculateDistance(selectedPoints[i], selectedPoints[j]);
+                }
+            }
+
+            const data = {
+                numberOfVehicles: numberOfVehicles,
+                distancesMatrix: distancesMatrix,
+                demands: demands,
+                vehicle_capacities: vehicleCapacity,
+            };
+
+            sendData('/optimalpath', data);
+        }
+
+        function appendElement(parent, elementType, text) {
+            const element = document.createElement(elementType);
+            element.textContent = text;
+            parent.appendChild(element);
+        }
+
+
+        function loadRoutesData(jsonData) {
+            // console.log(jsonData);
+            const outputContainer = document.getElementById('outputContainer');
+            if(jsonData == null) {
+                const routeDiv = document.createElement('div');
+                routeDiv.className = 'route';
+                outputContainer.appendChild(routeDiv);
+                appendElement(outputContainer, 'p', `solution does not exists for given constraints`);
+                return;
+            }
+
+            // Loop through routes and display each route
+            jsonData.routes.forEach(routeData => {
+                const routeDiv = document.createElement('div');
+                routeDiv.className = 'route';
+
+                for (const [routeTitle, routeInfo] of Object.entries(routeData)) {
+                    // Create a heading for the route title
+                    appendElement(routeDiv, 'h3', routeTitle);
+
+                    // Parse and append route information
+                    let routeInfoArray = routeInfo.split('\n').filter(Boolean);
+                    routeInfoArray = routeInfoArray.slice(1);
+                    routeInfoArray.forEach(info => appendElement(routeDiv, 'p', info));
+                }
+
+                // Append the route div to the container
+                outputContainer.appendChild(routeDiv);
+            });
+
+            // Display total distance and total load
+            appendElement(outputContainer, 'p', `-------------------------------------------`);
+            appendElement(outputContainer, 'p', `Total Distance: ${jsonData.total_distance}m`);
+            appendElement(outputContainer, 'p', `Total Load: ${jsonData.total_load}`);
+        }
+
+        function sendData(endpoint, data) {
+            const csrftoken = getCookie('csrftoken'); // Function to get the CSRF token from cookies
+            const headers = {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrftoken,
+            };
+
+            fetch(endpoint, {
+                method: 'POST',
+                headers: headers,
+                body: JSON.stringify(data),
+            })
+                .then(response => response.json())
+                .then(data => {
+                    console.log('Server response:', data)
+                    loadRoutesData(data.optimal_path);
+                })
+                .catch(error => console.error('Error:', error));
+        }
+
+        // Function to get the CSRF token from cookies
+        function getCookie(name) {
+            const value = `; ${document.cookie}`;
+            const parts = value.split(`; ${name}=`);
+            if (parts.length === 2) return parts.pop().split(';').shift();
+        }
+
+
+        function displaySelectedPoints() {
+            // Draw a blue dot for each selected point on the canvas
+            ctx.fillStyle = 'blue';
+            for (let i = 0; i < selectedPoints.length; i++) {
+                const point = selectedPoints[i];
+                ctx.beginPath();
+                ctx.arc(point.x, point.y, 5, 0, 2 * Math.PI);
+                ctx.fill();
+                ctx.closePath();
+            }
+        }
+
+        function calculateDistance(point1, point2) {
+            // Use grid numbers for distance calculation
+            let distance = Math.sqrt(Math.pow(point2.gridX - point1.gridX, 2) + Math.pow(point2.gridY - point1.gridY, 2));
+            return Math.ceil(distance)
+        }
     </script>
-  </body>
+
+</body>
+
 </html>
